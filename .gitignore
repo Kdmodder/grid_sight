@@ -1,0 +1,67 @@
+# -------------------------
+# Python virtual environment
+# -------------------------
+myenv/
+.env
+
+# -------------------------
+# MLflow artifacts
+# -------------------------
+mlruns/
+mlartifacts/
+mlflow.db
+
+# -------------------------
+# Model artifacts
+# -------------------------
+models/*
+!models/champion_model.pkl
+
+# (Optional: keep metadata if needed at inference)
+!models/feature_list.json
+!models/phase_mapping.json
+
+# -------------------------
+# Temporary retraining data
+# -------------------------
+Data/temp_retrain_data.csv
+retraining_report.md
+
+# -------------------------
+# Python cache
+# -------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+GRIDSIGHT MULTI-ALGORITHM MODEL COMparsion.txt
+Gridsight_eveluation.txt
+Gridsight-notes2.txt
+GrisSight-notes.txt
+# -------------------------
+# Jupyter
+# -------------------------
+.ipynb_checkpoints/
+
+# -------------------------
+# IDE
+# -------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# -------------------------
+# OS
+# -------------------------
+.DS_Store
+Thumbs.db
+
+# -------------------------
+# Logs & visuals
+# -------------------------
+*.log
+*.png
+!docs/**/*.png
