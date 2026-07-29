@@ -72,6 +72,7 @@ class GridSightForecaster:
         represent information not yet available at that milestone.
         """
         df = self.data.copy()
+        df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
         
         # Encode categorical variables
         for col in self.categorical_features:
@@ -195,7 +196,7 @@ class GridSightForecaster:
         print("="*60)
         
         # Configure MLflow tracking URI
-        mlflow.set_tracking_uri("http://127.0.0.1:5000")
+        mlflow.set_tracking_uri("http://100.55.38.100:5000")
         
         # Set experiment name
         experiment_name = "GridSight_PhaseAware_Cumulative_Forecasting"

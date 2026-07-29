@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gridsight-ui
+  namespace: gridsight
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: gridsight-ui
+
+  template:
+    metadata:
+      labels:
+        app: gridsight-ui
+
+    spec:
+      containers:
+        - name: gridsight-ui
+          image: kdmodder/gridsight-ui:1.0.1
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8501
+
+          env:
+            - name: PREDICTION_API_URL
+              value: "http://gridsight-predictor.kserve.svc.cluster.local/v1/models/gridsight:predict"
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 30
+            periodSeconds: 20

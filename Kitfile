@@ -1,0 +1,28 @@
+manifestVersion: 1.0
+
+package:
+  name: kdmodder/gridsight
+  version: 1.0.1
+  description: Phase-aware infrastructure forecasting using XGBoost
+
+code:
+  - path: gridsight_xgboost.py
+    description: Training pipeline
+
+  - path: retrain_pipeline.py
+    description: Retraining pipeline
+
+model:
+  name: GridSight Champion Model
+  path: champion_model.pkl
+  framework: XGBoost
+  version: 1.0.1
+  description: Champion forecasting model
+
+datasets:
+  - name: GridSight Training Dataset
+    path: Data/gridsight_dataset.csv.dvc
+    description: DVC metadata referencing the dataset stored in the DVC remote (S3)
+
+docs:
+  - path: README.md

@@ -1,0 +1,12 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: gridsight
+  namespace: kserve
+spec:
+  predictor:
+    containers:
+    - name: gridsight
+      image: kdmodder/gridsight-kserve:1.0.1
+      ports:
+      - containerPort: 8080

@@ -2,20 +2,19 @@
 GridSight - Phase-Aware Risk Forecasting UI
 Streamlit interface for cumulative delay and cost overrun prediction
 """
-
+import requests
 import streamlit as st
 import pandas as pd
-import pickle
 from datetime import datetime
 import os
 import random
 
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "models", "champion_model.pkl")
-FEATURE_PATH = os.path.join(BASE_DIR, "models", "feature_list.json")
-PHASE_PATH = os.path.join(BASE_DIR, "models", "phase_mapping.json")
-
+# 
+# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# MODEL_PATH = os.path.join(BASE_DIR, "models", "champion_model.pkl")
+# FEATURE_PATH = os.path.join(BASE_DIR, "models", "feature_list.json")
+# PHASE_PATH = os.path.join(BASE_DIR, "models", "phase_mapping.json")
+# 
 
 # Page configuration
 st.set_page_config(
@@ -24,32 +23,32 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# Load champion model once (cached)
-@st.cache_resource
-
-
-def load_model():
-    """Load the trained champion model safely (local + Render)."""
-    try:
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        MODEL_PATH = os.path.join(BASE_DIR, "models", "champion_model.pkl")
-
-        with open(MODEL_PATH, "rb") as f:
-            champion = pickle.load(f)
-
-        return champion
-
-    except Exception as e:
-        st.error(f"❌ Error loading model: {e}")
-        st.stop()
-
-
-# Load model
-champion = load_model()
-delay_model = champion['delay_model']
-cost_model = champion['cost_model']
-encoders = champion['encoders_and_features']
+# 
+# # Load champion model once (cached)
+# @st.cache_resource
+# 
+# 
+# def load_model():
+#     """Load the trained champion model safely (local + Render)."""
+#     try:
+#         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+#         MODEL_PATH = os.path.join(BASE_DIR, "models", "champion_model.pkl")
+# 
+#         with open(MODEL_PATH, "rb") as f:
+#             champion = pickle.load(f)
+# 
+#         return champion
+# 
+#     except Exception as e:
+#         st.error(f"❌ Error loading model: {e}")
+#         st.stop()
+# 
+# 
+# # Load model
+# champion = load_model()
+# delay_model = champion['delay_model']
+# cost_model = champion['cost_model']
+# encoders = champion['encoders_and_features']
 
 # ============================================================================
 # AUTOFILL HELPER FUNCTIONS
@@ -242,67 +241,67 @@ def autofill_from_test_data(phase_num):
 # ============================================================================
 # PREDICTION FUNCTION
 # ============================================================================
-def predict_for_project(project_data):
-    """
-    Make predictions for a single project.
-    Returns: predicted delay (days) and cost overrun (Cr)
-    """
-    # Convert to DataFrame
-    df = pd.DataFrame([project_data])
-    
-    # Create derived features
-    if 'Project_Location' in df.columns and 'State_Encoded' not in df.columns:
-        df['State'] = df['Project_Location'].apply(
-            lambda x: str(x).split(',')[0] if pd.notna(x) else 'Unknown'
-        )
-        if 'State' in encoders['label_encoders']:
-            try:
-                df['State_Encoded'] = encoders['label_encoders']['State'].transform(df['State'])
-            except ValueError:
-                df['State_Encoded'] = 0
-        else:
-            df['State_Encoded'] = 0
-        df = df.drop(['State'], axis=1, errors='ignore')
-    
-    if 'Start_Date' in df.columns and 'Days_Since_Start' not in df.columns:
-        df['Start_Date'] = pd.to_datetime(df['Start_Date'], format='%d-%m-%Y', errors='coerce')
-        df['Days_Since_Start'] = (datetime.now() - df['Start_Date']).dt.days
-        df = df.drop(['Start_Date'], axis=1, errors='ignore')
-    
-    # Drop unused columns
-    df = df.drop(['Project_Location', 'DOCO_Date'], axis=1, errors='ignore')
-    
-    # Encode categorical features
-    label_encoders = encoders['label_encoders']
-    categorical_features = encoders['categorical_features']
-    
-    for col in categorical_features:
-        if col in df.columns and col in label_encoders:
-            mask = df[col].notna()
-            if mask.sum() > 0:
-                try:
-                    df.loc[mask, col] = label_encoders[col].transform(df.loc[mask, col].astype(str))
-                except ValueError:
-                    df.loc[mask, col] = 0
-            df[col] = df[col].astype(float)
-    
-    # Convert all to numeric
-    for col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-    
-    # Extract features
-    X = df[encoders['all_features']]
-    
-    # Make predictions
-    delay_pred = delay_model.predict(X)[0]
-    cost_pred = cost_model.predict(X)[0]
-    
-    return {
-        'predicted_delay_days': round(delay_pred, 2),
-        'predicted_cost_overrun_cr': round(cost_pred, 2)
-    }
-
-# Save feedback to CSV
+# def predict_for_project(project_data):
+#     """
+#     Make predictions for a single project.
+#     Returns: predicted delay (days) and cost overrun (Cr)
+#     """
+#     # Convert to DataFrame
+#     df = pd.DataFrame([project_data])
+#     
+#     # Create derived features
+#     if 'Project_Location' in df.columns and 'State_Encoded' not in df.columns:
+#         df['State'] = df['Project_Location'].apply(
+#             lambda x: str(x).split(',')[0] if pd.notna(x) else 'Unknown'
+#         )
+#         if 'State' in encoders['label_encoders']:
+#             try:
+#                 df['State_Encoded'] = encoders['label_encoders']['State'].transform(df['State'])
+#             except ValueError:
+#                 df['State_Encoded'] = 0
+#         else:
+#             df['State_Encoded'] = 0
+#         df = df.drop(['State'], axis=1, errors='ignore')
+#     
+#     if 'Start_Date' in df.columns and 'Days_Since_Start' not in df.columns:
+#         df['Start_Date'] = pd.to_datetime(df['Start_Date'], format='%d-%m-%Y', errors='coerce')
+#         df['Days_Since_Start'] = (datetime.now() - df['Start_Date']).dt.days
+#         df = df.drop(['Start_Date'], axis=1, errors='ignore')
+#     
+#     # Drop unused columns
+#     df = df.drop(['Project_Location', 'DOCO_Date'], axis=1, errors='ignore')
+#     
+#     # Encode categorical features
+#     label_encoders = encoders['label_encoders']
+#     categorical_features = encoders['categorical_features']
+#     
+#     for col in categorical_features:
+#         if col in df.columns and col in label_encoders:
+#             mask = df[col].notna()
+#             if mask.sum() > 0:
+#                 try:
+#                     df.loc[mask, col] = label_encoders[col].transform(df.loc[mask, col].astype(str))
+#                 except ValueError:
+#                     df.loc[mask, col] = 0
+#             df[col] = df[col].astype(float)
+#     
+#     # Convert all to numeric
+#     for col in df.columns:
+#         df[col] = pd.to_numeric(df[col], errors='coerce')
+#     
+#     # Extract features
+#     X = df[encoders['all_features']]
+#     
+#     # Make predictions
+#     delay_pred = delay_model.predict(X)[0]
+#     cost_pred = cost_model.predict(X)[0]
+#     
+#     return {
+#         'predicted_delay_days': round(delay_pred, 2),
+#         'predicted_cost_overrun_cr': round(cost_pred, 2)
+#     }
+# 
+# # Save feedback to CSV
 def save_feedback(project_data, prediction, is_correct):
     """Save user feedback for future retraining."""
     feedback_path = 'Data/new_feedback_data.csv'
@@ -360,8 +359,8 @@ with st.sidebar:
     """)
     
     st.markdown("---")
-    st.markdown(f"**Model Version:** {champion.get('dataset_version', 'v1')}")
-    st.markdown(f"**Last Updated:** {champion.get('created_at', 'N/A')}")
+#     st.markdown(f"**Model Version:** {champion.get('dataset_version', 'v1')}")
+#     st.markdown(f"**Last Updated:** {champion.get('created_at', 'N/A')}")
 
 # Initialize session state for storing inputs
 if 'project_data' not in st.session_state:
@@ -810,7 +809,20 @@ if st.button("🎯 Predict Cumulative Risk", type="primary", use_container_width
                     st.session_state.project_data = project_input
                     
                     # Make prediction
-                    prediction = predict_for_project(project_input)
+                    API_URL = os.getenv(
+                            "PREDICTION_API_URL",
+                            "http://gridsight-predictor.kserve.svc.cluster.local/v1/models/gridsight:predict"
+                            )
+                    response = requests.post(
+                            API_URL,
+                            json={
+                                "instances": [project_input]
+                                },
+                            timeout=30
+                          )
+                    response.raise_for_status()
+                    prediction = response.json()["predictions"][0]
+
                     st.session_state.prediction_result = prediction
                     st.session_state.prediction_made = True
                     

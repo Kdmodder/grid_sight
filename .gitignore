@@ -65,3 +65,8 @@ Thumbs.db
 *.log
 *.png
 !docs/**/*.png
+
+.venv311/
+__pycache__/
+*.pyc
+.venv311/

@@ -13,3 +13,8 @@ boto3
 dvc[s3]
 psycopg2-binary
 joblib
+.venv311/
+__pycache__/
+*.pyc
+.python-version
+models/*.pkl
