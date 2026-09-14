@@ -24,6 +24,7 @@ warnings.filterwarnings('ignore')
 
 # MLflow integration
 import mlflow
+import mlflow.xgboost
 import mlflow.sklearn
 
 # Set styling
@@ -196,7 +197,7 @@ class GridSightForecaster:
         print("="*60)
         
         # Configure MLflow tracking URI
-        mlflow.set_tracking_uri("http://100.55.38.100:5000")
+        mlflow.set_tracking_uri("https://dagshub.com/Kdmodder/GridSight.mlflow")
         
         # Set experiment name
         experiment_name = "GridSight_PhaseAware_Cumulative_Forecasting"
@@ -245,14 +246,14 @@ class GridSightForecaster:
             print("Logging models...")
             
             # Log delay model (using sklearn API for compatibility)
-            mlflow.sklearn.log_model(
+            mlflow.xgboost.log_model(
                 self.models['delay'],
                 artifact_path="delay_model",
                 registered_model_name="GridSight_Delay_Model"
             )
             
             # Log cost model (using sklearn API for compatibility)
-            mlflow.sklearn.log_model(
+            mlflow.xgboost.log_model(
                 self.models['cost'],
                 artifact_path="cost_model",
                 registered_model_name="GridSight_Cost_Model"
@@ -302,7 +303,7 @@ class GridSightForecaster:
             print(f"\n✓ Successfully logged to MLflow")
             print(f"  Experiment: {experiment_name}")
             print(f"  Run ID: {run.info.run_id}")
-            print(f"  Tracking URI: http://127.0.0.1:5000")
+            print(f"  Tracking URI: {mlflow.get_tracking_uri()}")
             
             return run.info.run_id
     
@@ -850,7 +851,7 @@ def main():
     
     # Visualize
     print("\n[7/7] Creating prediction visualizations...")
-    forecaster.visualize_predictions(test_df_eval)
+    # forecaster.visualize_predictions(test_df_eval)
     
     # SHAP analysis
     print("\n[BONUS] Generating SHAP explainability analysis...")
@@ -879,7 +880,7 @@ def main():
     print("  ✓ Saved models in 'models/' directory")
     print(f"  ✓ MLflow tracking (Run ID: {run_id})")
     print("\nGridSight is ready for deployment!")
-    print(f"\n🔗 View MLflow dashboard: http://127.0.0.1:5000")
+    print(f"\n🔗 MLflow tracking URI: {os.environ['MLFLOW_TRACKING_URI']}")
     
 
 if __name__ == "__main__":
