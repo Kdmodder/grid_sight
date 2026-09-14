@@ -10,6 +10,9 @@ metadata:
       gridsight-ui=kdmodder/gridsight-ui,
       gridsight-kserve=kdmodder/gridsight-kserve
 
+    argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/argocd-image-updater-git-creds
+    argocd-image-updater.argoproj.io/git-branch: main
+
     argocd-image-updater.argoproj.io/gridsight-ui.update-strategy: semver
     argocd-image-updater.argoproj.io/gridsight-kserve.update-strategy: semver
 
@@ -17,11 +20,11 @@ spec:
   project: default
 
   ignoreDifferences:
-  - group: serving.kserve.io
-    kind: InferenceService
-    jsonPointers:
-      - /spec/predictor/containers/0/name
-      - /spec/predictor/containers/0/resources
+    - group: serving.kserve.io
+      kind: InferenceService
+      jsonPointers:
+        - /spec/predictor/containers/0/name
+        - /spec/predictor/containers/0/resources
 
   source:
     repoURL: https://github.com/Kdmodder/grid_sight.git
@@ -40,3 +43,4 @@ spec:
 
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
