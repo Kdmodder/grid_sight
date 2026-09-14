@@ -81,11 +81,26 @@ class GridSightForecaster:
                 le = LabelEncoder()
                 # Handle NaN values in categorical columns
                 mask = df[col].notna()
+
                 if mask.sum() > 0:
-                    df.loc[mask, col] = le.fit_transform(df.loc[mask, col].astype(str))
+                    encoded = pd.Series(
+                        np.nan,
+                        index=df.index,
+                        dtype="float64"
+                    )
+
+                    encoded.loc[mask] = le.fit_transform(
+                        df.loc[mask, col].astype(str)
+                    )
+
+                    df[col] = encoded
                     self.label_encoders[col] = le
-                # Convert to float to handle NaN and ensure numeric dtype
-                df[col] = df[col].astype(float)
+                else:
+                    df[col] = pd.Series(
+                        np.nan,
+                        index=df.index,
+                        dtype="float64"
+                    )
         
         # Encode Project_Location (extract state)
         if 'Project_Location' in df.columns:
