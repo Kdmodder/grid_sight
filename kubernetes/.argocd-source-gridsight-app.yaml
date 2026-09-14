@@ -1,0 +1,4 @@
+kustomize:
+  images:
+  - kdmodder/gridsight-ui:1.0.3
+  - kdmodder/gridsight-kserve:1.0.1
