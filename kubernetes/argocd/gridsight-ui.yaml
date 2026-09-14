@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+
+metadata:
+  name: gridsight-app
+  namespace: argocd
+
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: |
+      gridsight-ui=kdmodder/gridsight-ui,
+      gridsight-kserve=kdmodder/gridsight-kserve
+
+    argocd-image-updater.argoproj.io/gridsight-ui.update-strategy: semver
+    argocd-image-updater.argoproj.io/gridsight-kserve.update-strategy: semver
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Kdmodder/grid_sight.git
+    targetRevision: main
+    path: kubernetes
+    kustomize: {}
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gridsight
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true

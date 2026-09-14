@@ -1,0 +1,14 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+
+metadata:
+  name: gridsight-image-updater
+  namespace: argocd
+
+spec:
+  applicationRefs:
+    - namePattern: "gridsight-app"
+      useAnnotations: true
+
+  writeBackConfig:
+    method: git

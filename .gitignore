@@ -70,3 +70,4 @@ Thumbs.db
 __pycache__/
 *.pyc
 .venv311/
+kubernetes/argocd/secret-image-updater.yaml
