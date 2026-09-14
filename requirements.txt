@@ -7,13 +7,8 @@ matplotlib
 seaborn
 shap
 streamlit
-
 mlflow
 boto3
 dvc[s3]
 psycopg2-binary
 joblib
-__pycache__/
-*.pyc
-.python-version
-models/*.pkl
