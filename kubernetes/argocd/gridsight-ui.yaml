@@ -16,6 +16,13 @@ metadata:
 spec:
   project: default
 
+  ignoreDifferences:
+  - group: serving.kserve.io
+    kind: InferenceService
+    jsonPointers:
+      - /spec/predictor/containers/0/name
+      - /spec/predictor/containers/0/resources
+
   source:
     repoURL: https://github.com/Kdmodder/grid_sight.git
     targetRevision: main
