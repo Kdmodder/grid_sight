@@ -10,3 +10,4 @@ spec:
       image: kdmodder/gridsight-kserve:1.0.1
       ports:
       - containerPort: 8080
+        protocol: TCP
