@@ -1,13 +1,32 @@
-name: Test DagsHub MLflow
+name: Test DagsHub Auth
 
 on:
   workflow_dispatch:
 
 jobs:
-  test-dagshub:
+  test:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Test DagsHub token with API
+        env:
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          echo "Token length: ${#DAGSHUB_TOKEN}"
+
+          STATUS=$(curl -s -o /tmp/result.json -w "%{http_code}" \
+            -u "Kdmodder:${DAGSHUB_TOKEN}" \
+            "https://dagshub.com/api/v1/user")
+
+          echo "DagsHub API HTTP status: $STATUS"
+
+          if [ "$STATUS" != "200" ]; then
+            echo "DagsHub authentication FAILED"
+            exit 1
+          fi
+
+          echo "DagsHub API authentication SUCCESS"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -16,33 +35,23 @@ jobs:
       - name: Install MLflow
         run: pip install mlflow
 
-      - name: Test DagsHub MLflow authentication
+      - name: Test MLflow authentication
         env:
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_USERNAME: Kdmodder
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
           python - <<'PY'
-          import os
           import mlflow
-
-          username = os.getenv("MLFLOW_TRACKING_USERNAME")
-          token = os.getenv("MLFLOW_TRACKING_PASSWORD")
-
-          print("Username configured:", bool(username))
-          print("Token configured:", bool(token))
-          print("Username:", username)
-          print("Token length:", len(token) if token else 0)
-
-          if not username or not token:
-              raise RuntimeError("DagsHub GitHub secrets are missing")
 
           mlflow.set_tracking_uri(
               "https://dagshub.com/Kdmodder/GridSight.mlflow"
           )
 
+          print("Tracking URI:", mlflow.get_tracking_uri())
+
           client = mlflow.MlflowClient()
           experiments = client.search_experiments()
 
-          print("DagsHub authentication SUCCESS")
-          print("Experiments found:", len(experiments))
+          print("MLflow authentication SUCCESS")
+          print("Experiments:", len(experiments))
           PY
