@@ -12,35 +12,52 @@ on:
       - "predictor/**"
       - "kserve/**"
       - "requirements.txt"
-      - "model-version.txt"
+
+# Required so GitHub Actions can update model-version.txt
+permissions:
+  contents: write
 
 jobs:
   train-build-push:
     runs-on: ubuntu-latest
 
     env:
+      # AWS credentials for DVC S3 remote
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
 
+      # DagsHub / MLflow
       MLFLOW_TRACKING_USERNAME: Kdmodder
       MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
 
     steps:
+
+      # ==================================================
+      # 1. Checkout Repository
+      # ==================================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # ==================================================
+      # 2. Setup Python
+      # ==================================================
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      # ==================================================
+      # 3. Install Dependencies
+      # ==================================================
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Fail early if DagsHub authentication is broken
+      # ==================================================
+      # 4. Verify DagsHub Authentication
+      # ==================================================
       - name: Verify DagsHub authentication
         run: |
           python - <<'PY'
@@ -68,17 +85,23 @@ jobs:
           print("Experiments found:", len(experiments))
           PY
 
+      # ==================================================
+      # 5. Pull Dataset From DVC / S3
+      # ==================================================
       - name: Pull dataset from DVC
         run: |
           dvc pull Data/gridsight_dataset.csv.dvc
 
+      # ==================================================
+      # 6. Train XGBoost Model
+      # ==================================================
       - name: Train model
-        env:
-          MLFLOW_TRACKING_USERNAME: Kdmodder
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
           python gridsight_xgboost.py
 
+      # ==================================================
+      # 7. Verify Champion Model
+      # ==================================================
       - name: Verify champion model
         run: |
           echo "Checking generated champion model..."
@@ -89,25 +112,50 @@ jobs:
 
           echo "Champion model verified"
 
-      - name: Read model version
+      # ==================================================
+      # 8. Read + Increment model-version.txt
+      #
+      # Example:
+      # 1.0.2 -> 1.0.3
+      # ==================================================
+      - name: Increment model version
         id: version
+        shell: bash
         run: |
-          VERSION=$(tr -d '[:space:]' < model-version.txt)
+          CURRENT_VERSION=$(tr -d '[:space:]' < model-version.txt)
 
-          if [ -z "$VERSION" ]; then
-            echo "model-version.txt is empty"
+          echo "Current version: $CURRENT_VERSION"
+
+          if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version format: $CURRENT_VERSION"
+            echo "Expected format: MAJOR.MINOR.PATCH"
             exit 1
           fi
 
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Model version: $VERSION"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
+          PATCH=$((PATCH + 1))
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+          echo "$NEW_VERSION" > model-version.txt
+
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+          echo "New model version: $NEW_VERSION"
+
+      # ==================================================
+      # 9. Docker Hub Login
+      # ==================================================
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      # ==================================================
+      # 10. Build KServe Image
+      # ==================================================
       - name: Build KServe image
         run: |
           docker build \
@@ -115,20 +163,78 @@ jobs:
             -t ${{ secrets.DOCKERHUB_USERNAME }}/gridsight-kserve:${{ steps.version.outputs.version }} \
             .
 
+      # ==================================================
+      # 11. Verify Image BEFORE Push
+      #
+      # Prevents broken images from reaching Docker Hub.
+      # This specifically catches the predictor issue
+      # that caused the 1.0.2 CrashLoopBackOff.
+      # ==================================================
+      - name: Verify KServe image contents
+        run: |
+          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/gridsight-kserve:${{ steps.version.outputs.version }}"
+
+          echo "Checking predictor..."
+          docker run --rm --entrypoint sh "$IMAGE" \
+            -c 'test -f /app/predictor/predictor.py'
+
+          echo "Checking champion model..."
+          docker run --rm --entrypoint sh "$IMAGE" \
+            -c 'test -f /app/models/champion_model.pkl'
+
+          echo "Checking KServe server..."
+          docker run --rm --entrypoint sh "$IMAGE" \
+            -c 'test -f /app/kserve/kserve_server.py'
+
+          echo "Checking Python predictor import..."
+          docker run --rm --entrypoint python "$IMAGE" \
+            -c 'import predictor.predictor; print("Predictor import successful")'
+
+          echo "KServe image verification SUCCESS"
+
+      # ==================================================
+      # 12. Push Image To Docker Hub
+      # ==================================================
       - name: Push KServe image
         run: |
           docker push \
             ${{ secrets.DOCKERHUB_USERNAME }}/gridsight-kserve:${{ steps.version.outputs.version }}
 
+      # ==================================================
+      # 13. Update model-version.txt In GitHub
+      #
+      # Happens ONLY after successful image push.
+      # ==================================================
+      - name: Commit updated model version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add model-version.txt
+
+          git commit \
+            -m "chore: bump model version to ${{ steps.version.outputs.version }} [skip ci]"
+
+          git push origin HEAD:main
+
+      # ==================================================
+      # 14. Pipeline Summary
+      # ==================================================
       - name: Pipeline summary
         run: |
-          echo "========================================"
-          echo "GridSight Model Pipeline Completed"
-          echo "========================================"
+          echo "=========================================="
+          echo "GridSight Model CI Completed Successfully"
+          echo "=========================================="
+          echo ""
           echo "Model version: ${{ steps.version.outputs.version }}"
           echo "Image: ${{ secrets.DOCKERHUB_USERNAME }}/gridsight-kserve:${{ steps.version.outputs.version }}"
-          echo "DVC dataset: OK"
-          echo "DagsHub MLflow: OK"
-          echo "Docker Hub: OK"
-          docker push \
-            ${{ secrets.DOCKERHUB_USERNAME }}/gridsight-kserve:${{ steps.version.outputs.version }}
+          echo ""
+          echo "DVC / S3 Dataset:       OK"
+          echo "XGBoost Training:       OK"
+          echo "DagsHub MLflow:         OK"
+          echo "Champion Model:         OK"
+          echo "KServe Image:           OK"
+          echo "Docker Hub Push:        OK"
+          echo "Version Update:         OK"
+          echo ""
+          echo "Waiting for ArgoCD Image Updater..."
