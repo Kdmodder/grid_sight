@@ -19,12 +19,12 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-      MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
-
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+
+      MLFLOW_TRACKING_USERNAME: Kdmodder
+      MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
 
     steps:
       - name: Checkout repository
@@ -39,25 +39,66 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install "dvc[s3]"
+
+      # Fail early if DagsHub authentication is broken
+      - name: Verify DagsHub authentication
+        run: |
+          python - <<'PY'
+          import os
+          import mlflow
+
+          username = os.getenv("MLFLOW_TRACKING_USERNAME")
+          token = os.getenv("MLFLOW_TRACKING_PASSWORD")
+
+          print("Username configured:", bool(username))
+          print("Token configured:", bool(token))
+          print("Token length:", len(token) if token else 0)
+
+          if not username or not token:
+              raise RuntimeError("DagsHub credentials are missing")
+
+          mlflow.set_tracking_uri(
+              "https://dagshub.com/Kdmodder/GridSight.mlflow"
+          )
+
+          client = mlflow.MlflowClient()
+          experiments = client.search_experiments()
+
+          print("DagsHub MLflow authentication SUCCESS")
+          print("Experiments found:", len(experiments))
+          PY
 
       - name: Pull dataset from DVC
         run: |
           dvc pull Data/gridsight_dataset.csv.dvc
 
       - name: Train model
+        env:
+          MLFLOW_TRACKING_USERNAME: Kdmodder
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
           python gridsight_xgboost.py
 
       - name: Verify champion model
         run: |
+          echo "Checking generated champion model..."
+
           test -f models/champion_model.pkl
+
           ls -lh models/champion_model.pkl
+
+          echo "Champion model verified"
 
       - name: Read model version
         id: version
         run: |
-          VERSION=$(cat model-version.txt)
+          VERSION=$(tr -d '[:space:]' < model-version.txt)
+
+          if [ -z "$VERSION" ]; then
+            echo "model-version.txt is empty"
+            exit 1
+          fi
+
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Model version: $VERSION"
 
@@ -76,5 +117,18 @@ jobs:
 
       - name: Push KServe image
         run: |
+          docker push \
+            ${{ secrets.DOCKERHUB_USERNAME }}/gridsight-kserve:${{ steps.version.outputs.version }}
+
+      - name: Pipeline summary
+        run: |
+          echo "========================================"
+          echo "GridSight Model Pipeline Completed"
+          echo "========================================"
+          echo "Model version: ${{ steps.version.outputs.version }}"
+          echo "Image: ${{ secrets.DOCKERHUB_USERNAME }}/gridsight-kserve:${{ steps.version.outputs.version }}"
+          echo "DVC dataset: OK"
+          echo "DagsHub MLflow: OK"
+          echo "Docker Hub: OK"
           docker push \
             ${{ secrets.DOCKERHUB_USERNAME }}/gridsight-kserve:${{ steps.version.outputs.version }}
