@@ -30,7 +30,7 @@ __pycache__
 mlruns
 
 kubernetes
-predictor
+
 kitops
 
 Dockerfile
