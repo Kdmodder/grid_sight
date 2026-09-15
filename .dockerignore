@@ -30,7 +30,6 @@ __pycache__
 mlruns
 
 kubernetes
-kserve
 predictor
 kitops
 
