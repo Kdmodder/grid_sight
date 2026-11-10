@@ -4,7 +4,7 @@ metadata:
   name: gridsight-ui
   namespace: gridsight
 spec:
-  type: NordPort
+  type: NodePort
 
   selector:
     app: gridsight-ui
