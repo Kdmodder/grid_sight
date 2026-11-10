@@ -4,7 +4,7 @@ metadata:
   name: gridsight-ui
   namespace: gridsight
 spec:
-  type: ClusterIP
+  type: NordPort
 
   selector:
     app: gridsight-ui
@@ -14,3 +14,4 @@ spec:
       protocol: TCP
       port: 80
       targetPort: 8501
+      nodePort: 30080
